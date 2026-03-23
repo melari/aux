@@ -104,11 +104,21 @@ module Aux
         end
       end
 
+      def commits_against_master
+        @commits_against_master ||= begin
+          stdout, stderr, status = capture3("git log master..HEAD --oneline")
+          raise GitError, "Failed to get commits: #{stderr.strip}" unless status.success?
+
+          stdout
+        end
+      end
+
       def generate_title(branch)
         prompt_path = File.expand_path("../prompts/pr_title.md", __dir__)
         prompt = File.read(prompt_path)
           .gsub("{{branch}}", branch)
           .gsub("{{diff}}", diff_against_master)
+          .gsub("{{commits}}", commits_against_master)
 
         run_agent(prompt)
       end
@@ -118,6 +128,7 @@ module Aux
         prompt = File.read(prompt_path)
           .gsub("{{branch}}", branch)
           .gsub("{{diff}}", diff_against_master)
+          .gsub("{{commits}}", commits_against_master)
           .gsub("{{beta_url}}", beta_url)
 
         run_agent(prompt)

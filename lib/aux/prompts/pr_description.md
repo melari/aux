@@ -28,8 +28,14 @@ The branch name of the code change is {{branch}}. It should include information 
 
 ### Step 1b: Context from Git
 
-There is no action for you to take in this step. I am simply providing the git diff of the changes in this PR for your context:
+There is no action for you to take in this step. I am simply providing the commit history and git diff of the changes in this PR for your context.
 
+Commits (newest first):
+```
+{{commits}}
+```
+
+Diff:
 ```
 {{diff}}
 ```

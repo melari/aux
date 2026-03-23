@@ -30,14 +30,10 @@ module Aux
         check_existing_pr(branch)
 
         puts
-        puts "Generating PR title...".colorize(:dim)
-        title = generate_title(branch)
+        puts "Generating PR title and description...".colorize(:dim)
+        title, description = generate_title_and_description(branch)
         puts
         puts "Title: #{title}".colorize(:cyan)
-
-        puts
-        puts "Generating PR description...".colorize(:dim)
-        description = generate_description(branch)
         puts
         puts description
 
@@ -113,25 +109,16 @@ module Aux
         end
       end
 
-      def generate_title(branch)
-        prompt_path = File.expand_path("../prompts/pr_title.md", __dir__)
-        prompt = File.read(prompt_path)
-          .gsub("{{branch}}", branch)
-          .gsub("{{diff}}", diff_against_master)
-          .gsub("{{commits}}", commits_against_master)
-
-        run_agent(prompt)
-      end
-
-      def generate_description(branch)
-        prompt_path = File.expand_path("../prompts/pr_description.md", __dir__)
+      def generate_title_and_description(branch)
+        prompt_path = File.expand_path("../prompts/pr.md", __dir__)
         prompt = File.read(prompt_path)
           .gsub("{{branch}}", branch)
           .gsub("{{diff}}", diff_against_master)
           .gsub("{{commits}}", commits_against_master)
           .gsub("{{beta_url}}", beta_url)
 
-        run_agent(prompt)
+        result = JSON.parse(run_agent(prompt))
+        [result.fetch("title"), result.fetch("description")]
       end
 
       def create_pr(title, description)

@@ -1,7 +1,13 @@
-We are going to generate a PR description. To do so I have three important rules:
+We are going to generate a PR title and description. Important rules:
 1. Do NOT use any other skills like create-pr skill or otherwise.
-2. Your are only permitted to use MCP tools that are explicitly mentioned in this guide (linear_discover). All other tools and MCP are off limits.
-3. Your reponse is going to be fed into a command line tool, so do NOT include any boilerplate. Respond with just the PR description and that is it.
+2. You are only permitted to use MCP tools that are explicitly mentioned in this guide (linear_discover). All other tools and MCP are off limits.
+3. Your response will be machine-parsed as JSON. Respond with ONLY a valid JSON object — no markdown fences, no boilerplate, nothing else.
+
+Example JSON response:
+{
+  title: "The title",
+  description: "The description"
+}
 
 ### Step 1a: Gather context from Linear
 
@@ -11,7 +17,7 @@ The branch name of the code change is {{branch}}. It should include information 
     ```json
     {
     "server": "user-linear",
-    "toolName": "linear_discover", 
+    "toolName": "linear_discover",
     "arguments": {
         "action": "get-issue",
         "issue_id": "<TICKET_ID>",
@@ -40,14 +46,14 @@ Diff:
 {{diff}}
 ```
 
+### Step 2: Generate the PR title and description
 
-### Step 2: Generate the PR description
+**Title:** A single concise PR title in the imperative mood (e.g. "Add", "Fix", "Update"), suitable as a GitHub PR title.
 
-The format that we want for the PR description is exactly as follows:
+**Description:** Use exactly this format:
 
-```
 ### What problem does this solve?
-<2-3 setences summarizing the context around why this change is being made. This should mostly use context from the linear ticket>
+<2-3 sentences summarizing the context around why this change is being made. This should mostly use context from the linear ticket>
 
 ### How does it solve it?
 <A short summary of how the problem was solved technically. This should mostly use context from the code diff>
@@ -56,8 +62,9 @@ The format that we want for the PR description is exactly as follows:
 
 {{beta_url}}
 
-<list some test cases about the situations we need to QA on the beta. See below for how these test cases should be formatted (using githubs checkbox syntax). We want to keep the numbers of manual QA test cases relatively low. Dont list out too many variations of edge cases.>
+<list some test cases about the situations we need to QA on the beta. Use GitHub checkbox syntax. Keep the number of manual QA test cases relatively low — don't list too many edge case variations.>
 - [ ] Example test case 1
 - [ ] Example test case 2
-```
 
+Respond with ONLY this JSON object (no markdown fences):
+{"title": "<pr title>", "description": "<pr description>"}

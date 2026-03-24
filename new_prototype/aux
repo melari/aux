@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROMPT_FILE="$SCRIPT_DIR/prompts/pr.md"
+
+green() { printf '\033[32m%s\033[0m\n' "$*"; }
+yellow() { printf '\033[33m%s\033[0m\n' "$*"; }
+cyan() { printf '\033[36m%s\033[0m\n' "$*"; }
+dim() { printf '\033[2m%s\033[0m\n' "$*"; }
+die() { echo "Error: $*" >&2; exit 1; }
+
+# Get current branch
+branch=$(git rev-parse --abbrev-ref HEAD 2>&1) || die "Failed to get current branch: $branch"
+[[ -z "$branch" || "$branch" == "HEAD" ]] && die "Could not determine current branch"
+echo "Branch: $branch"
+
+# Fetch remote
+dim "Fetching origin/$branch..."
+git fetch origin "$branch" || die "Failed to fetch origin/$branch"
+
+# Compare SHAs
+local_sha=$(git rev-parse HEAD) || die "Failed to resolve HEAD"
+remote_sha=$(git rev-parse "origin/$branch") || die "Failed to resolve origin/$branch"
+
+if [[ "$local_sha" == "$remote_sha" ]]; then
+  green "Branch is in sync with origin/$branch."
+else
+  yellow "Warning: local branch is out of sync with origin/$branch."
+  echo "  local:  $local_sha"
+  echo "  remote: $remote_sha"
+fi
+
+# Check for existing PR
+existing_pr_url=""
+pr_json=$(gh pr view "$branch" --json url,title,number,state 2>/dev/null || true)
+if [[ -n "$pr_json" ]] && [[ $(echo "$pr_json" | jq -r '.state') == "OPEN" ]]; then
+  pr_number=$(echo "$pr_json" | jq -r '.number')
+  pr_title=$(echo "$pr_json" | jq -r '.title')
+  existing_pr_url=$(echo "$pr_json" | jq -r '.url')
+  cyan "Existing PR #$pr_number: $pr_title"
+  echo "  $existing_pr_url"
+  printf 'Regenerate title and description? [Y/n] '
+  read -r answer
+  [[ "$answer" =~ ^[Nn] ]] && exit 0
+else
+  dim "No existing PR found for $branch."
+fi
+
+# Get beta URL
+beta_json=$(beta ls --json 2>/dev/null || echo "[]")
+beta_count=$(echo "$beta_json" | jq 'length')
+if [[ "$beta_count" -eq 0 ]]; then
+  beta_url=""
+elif [[ "$beta_count" -eq 1 ]]; then
+  beta_url=$(echo "$beta_json" | jq -r '.[0].url')
+else
+  beta_url=$(echo "$beta_json" | jq -r '.[] | "- \(.template): \(.url)"' | tr '\n' '\n')
+fi
+
+# Get git context
+diff=$(git diff master) || die "Failed to get diff against master"
+commits=$(git log master..HEAD --oneline) || die "Failed to get commits against master"
+
+# Build prompt by substituting template variables
+prompt=$(PROMPT_FILE="$PROMPT_FILE" BRANCH="$branch" DIFF="$diff" COMMITS="$commits" BETA_URL="$beta_url" \
+  python3 -c "
+import os
+template = open(os.environ['PROMPT_FILE']).read()
+result = (template
+  .replace('{{branch}}', os.environ['BRANCH'])
+  .replace('{{diff}}', os.environ['DIFF'])
+  .replace('{{commits}}', os.environ['COMMITS'])
+  .replace('{{beta_url}}', os.environ['BETA_URL']))
+print(result, end='')
+") || die "Failed to build prompt"
+
+echo
+dim "Generating PR title and description..."
+
+agent_output=$(agent --trust --output-format json --print prompt "$prompt") || die "Agent failed"
+title=$(echo "$agent_output" | jq -r '.result | fromjson | .title')
+description=$(echo "$agent_output" | jq -r '.result | fromjson | .description')
+
+echo
+cyan "Title: $title"
+echo
+echo "$description"
+
+echo
+if [[ -n "$existing_pr_url" ]]; then
+  dim "Updating existing PR..."
+  _tmpfile=$(mktemp)
+  if ! gh pr edit --title "$title" --body "$description" 2>"$_tmpfile"; then
+    _real_errors=$(grep -v "Projects (classic) is being deprecated" "$_tmpfile" || true)
+    rm -f "$_tmpfile"
+    if [[ -n "$_real_errors" ]]; then
+      echo "$_real_errors" >&2
+      die "Failed to update PR"
+    fi
+  else
+    rm -f "$_tmpfile"
+  fi
+  url="$existing_pr_url"
+else
+  dim "Creating draft PR..."
+  url=$(gh pr create --draft --title "$title" --body "$description") || die "Failed to create PR"
+fi
+
+echo
+green "PR is ready!"
+echo "  $url"

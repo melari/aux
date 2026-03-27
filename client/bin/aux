@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+set -e
+
+PATH_DIR="$1"
+REMOTE_URL="$2"
+BRANCH="main"
+
+if [ -z "$PATH_DIR" ] || [ -z "$REMOTE_URL" ]; then
+  echo "Usage: $0 <path> <git-url>"
+  exit 1
+fi
+
+mkdir -p "$PATH_DIR"
+cd "$PATH_DIR"
+
+# Initialize repo if needed
+if [ ! -d ".git" ]; then
+  git init --initial-branch="$BRANCH"
+fi
+
+# Add remote if not present
+if ! git remote get-url origin >/dev/null 2>&1; then
+  git remote add origin "$REMOTE_URL"
+fi
+
+# Make sure we're on the correct branch
+if ! git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  git checkout -b "$BRANCH"
+else
+  git checkout "$BRANCH"
+fi
+
+# If we have no commits locally yet, we need to prioritize using the remote history before creating an initial commit to avoid irreconcilable histories
+if ! git rev-parse HEAD >/dev/null 2>&1; then
+  if git ls-remote --heads origin "$BRANCH" | grep -q .; then
+    git pull origin "$BRANCH"
+  else
+    git commit --allow-empty -m "Initial Commit"
+  fi
+fi
+
+# Perform the sync
+git add -A
+if ! git diff --cached --quiet; then
+  git commit -m "Syncing"
+fi
+if git ls-remote --heads origin "$BRANCH" | grep -q .; then
+  git pull --no-rebase --no-edit origin "$BRANCH"
+fi
+git push -u origin "$BRANCH"

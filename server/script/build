@@ -1,0 +1,4 @@
+# To push: docker login ghcr.io -u melari
+
+docker buildx build --platform=linux/amd64 -t ghcr.io/melari/aux:latest .
+docker push ghcr.io/melari/aux:latest

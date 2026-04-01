@@ -7,7 +7,7 @@ REMOTE_URL="$2"
 BRANCH="main"
 
 if [ -z "$PATH_DIR" ] || [ -z "$REMOTE_URL" ]; then
-  echo "Usage: $0 <path> <git-url>"
+  echo "Usage: aux <path> <git-url>"
   exit 1
 fi
 

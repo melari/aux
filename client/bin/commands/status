@@ -94,21 +94,21 @@ jq -r '.[] | "\(.path)\t\(.url)\t\(.last_attempt // "")\t\(.last_success // "")"
       success_epoch=$(to_epoch "$last_success")
 
       now_epoch=$(date +%s)
-      stale=$(( attempt_epoch > 0 && now_epoch - attempt_epoch > 300 ))
-      sync_failed=$(( attempt_epoch > success_epoch ))
+      stale_attempt=$(( attempt_epoch > 0 && now_epoch - attempt_epoch > 300 ))
+      stale_success=$(( success_epoch > 0 && now_epoch - success_epoch > 300 ))
       never_attempt=$(( attempt_epoch == 0 ))
       never_success=$(( success_epoch == 0 ))
 
-      warning=$(( stale || sync_failed || never_attempt || never_success ))
+      warning=$(( stale_attempt || stale_success || never_attempt || never_success ))
 
       attempt_display="$(format_ts "$last_attempt")"
       success_display="$(format_ts "$last_success")"
-      if [ "$stale" -eq 1 ] || [ "$never_attempt" -eq 1 ]; then
+      if [ "$stale_attempt" -eq 1 ] || [ "$never_attempt" -eq 1 ]; then
         attempt_display="${RED}${attempt_display}${RESET}"
       else
         attempt_display="${GREEN}${attempt_display}${RESET}"
       fi
-      if [ "$sync_failed" -eq 1 ] || [ "$never_success" -eq 1 ]; then
+      if [ "$stale_success" -eq 1 ] || [ "$never_success" -eq 1 ]; then
         success_display="${RED}${success_display}${RESET}"
       else
         success_display="${GREEN}${success_display}${RESET}"

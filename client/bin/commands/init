@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+
+set -e
+
+AUX_BIN="$(realpath "$(dirname "$0")/../aux")"
+
+# ── macOS (launchd) ────────────────────────────────────────────────────────────
+
+init_macos() {
+  local label="com.aux.sync"
+  local plist="$HOME/Library/LaunchAgents/$label.plist"
+
+  if launchctl list "$label" &>/dev/null; then
+    echo "Service already loaded. Checking health..."
+    local pid last_exit
+    pid=$(launchctl list "$label" | awk '/PID/{print $3}' 2>/dev/null || true)
+    last_exit=$(launchctl list "$label" | awk '/LastExitStatus/{print $3}' 2>/dev/null || true)
+    if [ -n "$pid" ] && [ "$pid" != "-" ] && [ "$pid" != "0" ]; then
+      echo "  Status:    running (PID $pid)"
+    else
+      echo "  Status:    idle (not currently running)"
+    fi
+    echo "  Last exit: ${last_exit:-unknown}"
+    echo "  Plist:     $plist"
+    return
+  fi
+
+  mkdir -p "$(dirname "$plist")"
+  cat >"$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>$label</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$AUX_BIN</string>
+        <string>sync-all</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>60</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>$HOME/.local/share/aux/sync.log</string>
+    <key>StandardErrorPath</key>
+    <string>$HOME/.local/share/aux/sync.log</string>
+</dict>
+</plist>
+EOF
+
+  mkdir -p "$HOME/.local/share/aux"
+  launchctl load "$plist"
+  echo "Service installed and started (runs every 60s, starts at login)."
+  echo "  Plist: $plist"
+  echo "  Log:   $HOME/.local/share/aux/sync.log"
+}
+
+# ── Linux (systemd) ────────────────────────────────────────────────────────────
+
+init_linux() {
+  local unit_dir="$HOME/.config/systemd/user"
+  local service="$unit_dir/aux-sync.service"
+  local timer="$unit_dir/aux-sync.timer"
+
+  if systemctl --user is-active --quiet aux-sync.timer 2>/dev/null; then
+    echo "Service already active. Checking health..."
+    echo "  Timer:   $(systemctl --user is-active aux-sync.timer)"
+    echo "  Service: $(systemctl --user is-active aux-sync.service 2>/dev/null || echo inactive)"
+    systemctl --user status aux-sync.timer --no-pager --lines=5 || true
+    return
+  fi
+
+  mkdir -p "$unit_dir"
+
+  cat >"$service" <<EOF
+[Unit]
+Description=Aux sync
+
+[Service]
+Type=oneshot
+ExecStart=$AUX_BIN sync-all
+StandardOutput=append:$HOME/.local/share/aux/sync.log
+StandardError=append:$HOME/.local/share/aux/sync.log
+EOF
+
+  cat >"$timer" <<EOF
+[Unit]
+Description=Aux sync timer
+
+[Timer]
+OnActiveSec=0
+OnUnitActiveSec=60s
+Unit=aux-sync.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
+  mkdir -p "$HOME/.local/share/aux"
+  systemctl --user daemon-reload
+  systemctl --user enable --now aux-sync.timer
+
+  # Allow service to run at boot without an active login session
+  if command -v loginctl &>/dev/null; then
+    loginctl enable-linger "$(whoami)" 2>/dev/null || true
+  fi
+
+  echo "Service installed and started (runs every 60s, starts at boot)."
+  echo "  Service: $service"
+  echo "  Timer:   $timer"
+  echo "  Log:     $HOME/.local/share/aux/sync.log"
+}
+
+# ── Dispatch ───────────────────────────────────────────────────────────────────
+
+case "$(uname)" in
+Darwin) init_macos ;;
+Linux) init_linux ;;
+*)
+  echo "Error: unsupported OS '$(uname)'."
+  exit 1
+  ;;
+esac

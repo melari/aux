@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+set -e
+
+BRANCH="main"
+LINKS_FILE="$HOME/.local/share/aux/links.json"
+
+PATH_DIR="$(realpath "$1")"
+
+if [ -z "$PATH_DIR" ]; then
+  echo "Usage: aux sync <path>"
+  exit 1
+fi
+
+if [ ! -f "$LINKS_FILE" ]; then
+  echo "Error: No links found. Use 'aux link <path> <git-url>' first."
+  exit 1
+fi
+
+REMOTE_URL=$(jq -r --arg path "$PATH_DIR" '.[] | select(.path == $path) | .url' "$LINKS_FILE")
+
+if [ -z "$REMOTE_URL" ]; then
+  echo "Error: No link found for '$PATH_DIR'. Use 'aux link <path> <git-url>' first."
+  exit 1
+fi
+
+update_db() {
+  local field="$1"
+  local timestamp="$2"
+  if [ -f "$LINKS_FILE" ]; then
+    updated=$(jq --arg path "$PATH_DIR" --arg val "$timestamp" --arg field "$field" \
+      'map(if .path == $path then .[$field] = $val else . end)' "$LINKS_FILE")
+    echo "$updated" > "$LINKS_FILE"
+  fi
+}
+
+update_db "last_attempt" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+mkdir -p "$PATH_DIR"
+cd "$PATH_DIR"
+
+# Initialize repo if needed
+if [ ! -d ".git" ]; then
+  git init --initial-branch="$BRANCH"
+fi
+
+# Add remote if not present
+if ! git remote get-url origin >/dev/null 2>&1; then
+  git remote add origin "$REMOTE_URL"
+fi
+
+# Make sure we're on the correct branch
+if ! git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  git checkout -b "$BRANCH"
+else
+  git checkout "$BRANCH"
+fi
+
+# If we have no commits locally yet, we need to prioritize using the remote history before creating an initial commit to avoid irreconcilable histories
+if ! git rev-parse HEAD >/dev/null 2>&1; then
+  if git ls-remote --heads origin "$BRANCH" | grep -q .; then
+    git pull origin "$BRANCH"
+  else
+    git commit --allow-empty -m "Initial Commit"
+  fi
+fi
+
+# Perform the sync
+git add -A
+if ! git diff --cached --quiet; then
+  git commit -m "Syncing"
+fi
+if git ls-remote --heads origin "$BRANCH" | grep -q .; then
+  git pull --no-rebase --no-edit origin "$BRANCH"
+fi
+git push -u origin "$BRANCH"
+
+update_db "last_success" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"

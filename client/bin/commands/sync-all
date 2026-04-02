@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -e
+
+LINKS_FILE="$HOME/.local/share/aux/links.json"
+AUX="$(dirname "$0")/../aux"
+
+if [ ! -f "$LINKS_FILE" ] || [ "$(jq 'length' "$LINKS_FILE")" -eq 0 ]; then
+  echo "No links. Use 'aux link <path> <git-url>' to add one."
+  exit 0
+fi
+
+jq -r '.[].path' "$LINKS_FILE" | while read -r path; do
+  echo "Syncing $path..."
+  "$AUX" sync "$path"
+done

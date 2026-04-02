@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+set -e
+
+# ── macOS (launchd) ────────────────────────────────────────────────────────────
+
+deinit_macos() {
+  local label="com.aux.sync"
+  local plist="$HOME/Library/LaunchAgents/$label.plist"
+
+  if ! launchctl list "$label" &>/dev/null && [ ! -f "$plist" ]; then
+    echo "No service found. Nothing to remove."
+    exit 0
+  fi
+
+  if launchctl list "$label" &>/dev/null; then
+    launchctl unload "$plist"
+    echo "Service unloaded."
+  fi
+
+  if [ -f "$plist" ]; then
+    rm "$plist"
+    echo "Plist removed: $plist"
+  fi
+
+  echo "Done."
+}
+
+# ── Linux (systemd) ────────────────────────────────────────────────────────────
+
+deinit_linux() {
+  local unit_dir="$HOME/.config/systemd/user"
+  local service="$unit_dir/aux-sync.service"
+  local timer="$unit_dir/aux-sync.timer"
+
+  if [ ! -f "$service" ] && [ ! -f "$timer" ]; then
+    echo "No service found. Nothing to remove."
+    exit 0
+  fi
+
+  systemctl --user disable --now aux-sync.timer 2>/dev/null || true
+  systemctl --user stop aux-sync.service 2>/dev/null || true
+
+  rm -f "$service" "$timer"
+  systemctl --user daemon-reload
+  echo "Service removed."
+  echo "  Removed: $service"
+  echo "  Removed: $timer"
+}
+
+# ── Dispatch ───────────────────────────────────────────────────────────────────
+
+case "$(uname)" in
+  Darwin) deinit_macos ;;
+  Linux)  deinit_linux ;;
+  *)
+    echo "Error: unsupported OS '$(uname)'."
+    exit 1
+    ;;
+esac

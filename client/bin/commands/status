@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+
+set -e
+
+LINKS_FILE="$HOME/.local/share/aux/links.json"
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+RESET='\033[0m'
+
+EXPECTED_BIN="$HOME/.local/bin/aux"
+
+service_binary() {
+  case "$(uname)" in
+    Darwin)
+      local plist="$HOME/Library/LaunchAgents/com.aux.sync.plist"
+      [ -f "$plist" ] && plutil -extract ProgramArguments.0 raw "$plist" 2>/dev/null || true
+      ;;
+    Linux)
+      local service="$HOME/.config/systemd/user/aux-sync.service"
+      [ -f "$service" ] && awk -F= '/^ExecStart/{print $2}' "$service" | awk '{print $1}' || true
+      ;;
+  esac
+}
+
+service_status() {
+  case "$(uname)" in
+    Darwin)
+      if launchctl list "com.aux.sync" &>/dev/null; then
+        local last_exit
+        last_exit=$(launchctl list "com.aux.sync" | awk '/LastExitStatus/{gsub(/;/, "", $3); print $3}')
+        if [ "${last_exit:-1}" = "0" ]; then
+          echo -e "Service: ${GREEN}healthy ✅${RESET}"
+        else
+          echo -e "Service: ${RED}unhealthy (last exit: $last_exit) ⚠️${RESET}"
+        fi
+      else
+        echo -e "Service: ${RED}not installed ⚠️  (run \`aux init\` to set up)${RESET}"
+      fi
+      ;;
+    Linux)
+      if systemctl --user is-active --quiet aux-sync.timer 2>/dev/null; then
+        echo -e "Service: ${GREEN}healthy ✅${RESET}"
+      else
+        echo -e "Service: ${RED}not installed or inactive ⚠️${RESET}"
+      fi
+      ;;
+    *)
+      echo "Service: unknown (unsupported OS)"
+      ;;
+  esac
+
+  local bin
+  bin=$(service_binary)
+  if [ -z "$bin" ]; then
+    echo -e "Binary:  ${RED}unknown ⚠️${RESET}"
+  elif [ "$bin" = "$EXPECTED_BIN" ]; then
+    echo -e "Binary:  ${GREEN}${bin}${RESET}"
+  else
+    echo -e "Binary:  ${RED}${bin} ⚠️${RESET}"
+  fi
+}
+
+echo -e "$(service_status)"
+echo ""
+
+if [ ! -f "$LINKS_FILE" ] || [ "$(jq 'length' "$LINKS_FILE")" -eq 0 ]; then
+  echo "No links. Use 'aux link <path> <git-url>' to add one."
+  exit 0
+fi
+
+format_ts() {
+  local ts="$1"
+  if [ -z "$ts" ] || [ "$ts" = "null" ]; then
+    echo "never"
+  else
+    # macOS: parse as UTC to get epoch, then format in local time
+    local epoch
+    epoch=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$ts" "+%s" 2>/dev/null) \
+      && date -r "$epoch" "+%Y-%m-%d %I:%M:%S %p" \
+      || date -d "$ts" "+%Y-%m-%d %I:%M:%S %p"
+  fi
+}
+
+to_epoch() {
+  local ts="$1"
+  [ -z "$ts" ] || [ "$ts" = "null" ] && echo 0 && return
+  date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$ts" "+%s" 2>/dev/null \
+    || date -d "$ts" "+%s"
+}
+
+jq -r '.[] | "\(.path)\t\(.url)\t\(.last_attempt // "")\t\(.last_success // "")"' "$LINKS_FILE" \
+  | while IFS=$'\t' read -r path url last_attempt last_success; do
+      attempt_epoch=$(to_epoch "$last_attempt")
+      success_epoch=$(to_epoch "$last_success")
+
+      now_epoch=$(date +%s)
+      stale=$(( attempt_epoch > 0 && now_epoch - attempt_epoch > 300 ))
+      sync_failed=$(( attempt_epoch > success_epoch ))
+      never_attempt=$(( attempt_epoch == 0 ))
+      never_success=$(( success_epoch == 0 ))
+
+      warning=$(( stale || sync_failed || never_attempt || never_success ))
+
+      attempt_display="$(format_ts "$last_attempt")"
+      success_display="$(format_ts "$last_success")"
+      if [ "$stale" -eq 1 ] || [ "$never_attempt" -eq 1 ]; then
+        attempt_display="${RED}${attempt_display}${RESET}"
+      else
+        attempt_display="${GREEN}${attempt_display}${RESET}"
+      fi
+      if [ "$sync_failed" -eq 1 ] || [ "$never_success" -eq 1 ]; then
+        success_display="${RED}${success_display}${RESET}"
+      else
+        success_display="${GREEN}${success_display}${RESET}"
+      fi
+
+      echo -e "$path$([ "$warning" -eq 1 ] && echo ' ⚠️' || echo ' ✅')"
+      echo "  url:          $url"
+      echo -e "  last attempt: $attempt_display"
+      echo -e "  last success: $success_display"
+      echo ""
+    done

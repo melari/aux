@@ -2,50 +2,35 @@
 
 set -e
 
-PATH_DIR="$1"
-REMOTE_URL="$2"
-BRANCH="main"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ -z "$PATH_DIR" ] || [ -z "$REMOTE_URL" ]; then
-  echo "Usage: aux <path> <git-url>"
+cmd_help() {
+  echo "Usage: aux <command>"
+  echo ""
+  echo "Commands:"
+  echo "    aux sync <path>            -  Sync a linked directory with its remote git repository"
+  echo "    aux sync-all               -  Sync all linked directories"
+  echo "    aux init                   -  Install (or check) the background sync service"
+  echo "    aux deinit                 -  Remove the background sync service"
+  echo "    aux link <path> <git-url>  -  Save a path+url pair to your links"
+  echo "    aux unlink <path>          -  Remove a link by path"
+  echo "    aux status (alias: st)     -  List all links and their sync status"
+  echo "    aux help                   -  Show this help message"
+  echo ""
+}
+
+case "$1" in
+help) cmd_help ;;
+sync) exec "$SCRIPT_DIR/commands/sync" "$2" ;;
+sync-all) exec "$SCRIPT_DIR/commands/sync-all" ;;
+init) exec "$SCRIPT_DIR/commands/init" ;;
+deinit) exec "$SCRIPT_DIR/commands/deinit" ;;
+link) exec "$SCRIPT_DIR/commands/link" "$2" "$3" ;;
+unlink) exec "$SCRIPT_DIR/commands/unlink" "$2" ;;
+status | st) exec "$SCRIPT_DIR/commands/status" ;;
+*)
+  echo "Unknown command: $1"
+  echo "Run 'aux help' for usage instructions."
   exit 1
-fi
-
-mkdir -p "$PATH_DIR"
-cd "$PATH_DIR"
-
-# Initialize repo if needed
-if [ ! -d ".git" ]; then
-  git init --initial-branch="$BRANCH"
-fi
-
-# Add remote if not present
-if ! git remote get-url origin >/dev/null 2>&1; then
-  git remote add origin "$REMOTE_URL"
-fi
-
-# Make sure we're on the correct branch
-if ! git show-ref --verify --quiet "refs/heads/$BRANCH"; then
-  git checkout -b "$BRANCH"
-else
-  git checkout "$BRANCH"
-fi
-
-# If we have no commits locally yet, we need to prioritize using the remote history before creating an initial commit to avoid irreconcilable histories
-if ! git rev-parse HEAD >/dev/null 2>&1; then
-  if git ls-remote --heads origin "$BRANCH" | grep -q .; then
-    git pull origin "$BRANCH"
-  else
-    git commit --allow-empty -m "Initial Commit"
-  fi
-fi
-
-# Perform the sync
-git add -A
-if ! git diff --cached --quiet; then
-  git commit -m "Syncing"
-fi
-if git ls-remote --heads origin "$BRANCH" | grep -q .; then
-  git pull --no-rebase --no-edit origin "$BRANCH"
-fi
-git push -u origin "$BRANCH"
+  ;;
+esac

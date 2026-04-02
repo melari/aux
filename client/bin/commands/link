@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -e
+
+DATA_DIR="$HOME/.local/share/aux"
+LINKS_FILE="$DATA_DIR/links.json"
+
+PATH_DIR="$(realpath "$1")"
+REMOTE_URL="$2"
+
+if [ -z "$PATH_DIR" ] || [ -z "$REMOTE_URL" ]; then
+  echo "Usage: aux link <path> <git-url>"
+  exit 1
+fi
+
+"$(dirname "$0")/../aux" init
+
+# Ensure data directory and file exist
+mkdir -p "$DATA_DIR"
+if [ ! -f "$LINKS_FILE" ]; then
+  echo "[]" > "$LINKS_FILE"
+fi
+
+# Add the new link (allowing duplicates to be overwritten by path)
+updated=$(jq --arg path "$PATH_DIR" --arg url "$REMOTE_URL" \
+  'map(select(.path != $path)) + [{"path": $path, "url": $url, "last_attempt": null, "last_success": null}]' \
+  "$LINKS_FILE")
+
+echo "$updated" > "$LINKS_FILE"
+
+echo "Linked '$PATH_DIR' -> $REMOTE_URL"
+exec "$(dirname "$0")/../aux" sync "$PATH_DIR"

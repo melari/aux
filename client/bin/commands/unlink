@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+set -e
+
+DATA_DIR="$HOME/.local/share/aux"
+LINKS_FILE="$DATA_DIR/links.json"
+
+PATH_DIR="$1"
+
+if [ -z "$PATH_DIR" ]; then
+  echo "Usage: aux unlink <path>"
+  exit 1
+fi
+
+if [ ! -f "$LINKS_FILE" ]; then
+  echo "Error: No links found."
+  exit 1
+fi
+
+exists=$(jq --arg path "$PATH_DIR" 'any(.[]; .path == $path)' "$LINKS_FILE")
+if [ "$exists" = "false" ]; then
+  echo "Error: No link found for '$PATH_DIR'."
+  exit 1
+fi
+
+updated=$(jq --arg path "$PATH_DIR" 'map(select(.path != $path))' "$LINKS_FILE")
+echo "$updated" > "$LINKS_FILE"
+
+echo "Unlinked '$PATH_DIR'."

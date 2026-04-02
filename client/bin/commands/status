@@ -41,7 +41,7 @@ service_status() {
       if systemctl --user is-active --quiet aux-sync.timer 2>/dev/null; then
         echo -e "Service: ${GREEN}healthy ✅${RESET}"
       else
-        echo -e "Service: ${RED}not installed or inactive ⚠️${RESET}"
+        echo -e "Service: ${RED}not installed or inactive ⚠️  (run \`aux init\` to set up)${RESET}"
       fi
       ;;
     *)

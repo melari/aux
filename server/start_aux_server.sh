@@ -6,3 +6,5 @@ if [ ! -d "$BARE_REPO" ] || ! git -C "$BARE_REPO" rev-parse --git-dir >/dev/null
   echo "Initializing bare git repository in $BARE_REPO..."
   git init --bare "$BARE_REPO"
 fi
+
+exec ruby /app/app.rb

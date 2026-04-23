@@ -64,9 +64,11 @@ service_status() {
           fi
           ;;
         cron)
-          if pgrep -a crond 2>/dev/null | grep -q -- "-c $HOME/.cron"; then
+          local crond_pid
+          crond_pid=$(pgrep crond 2>/dev/null)
+          if [ -n "$crond_pid" ] && tr '\0' ' ' < /proc/$crond_pid/cmdline 2>/dev/null | grep -q -- "-c $HOME/.cron"; then
             echo -e "Service [cron]: ${GREEN}healthy ✅${RESET}"
-          elif pgrep crond >/dev/null 2>&1; then
+          elif [ -n "$crond_pid" ]; then
             echo -e "Service [cron]: ${RED}crond running but not watching $HOME/.cron ⚠️${RESET}"
           else
             echo -e "Service [cron]: ${RED}crond not running ⚠️  (is crond started?)${RESET}"

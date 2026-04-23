@@ -121,15 +121,16 @@ EOF
 
 init_linux_cron() {
   local log="$HOME/.local/share/aux/sync.log"
+  local cron_file="$HOME/.cron/$(whoami)"
 
-  if crontab -l 2>/dev/null | grep -q "aux sync-all"; then
+  if [ -f "$cron_file" ] && grep -q "aux sync-all" "$cron_file"; then
     echo "Cron job already installed. Checking health..."
-    crontab -l 2>/dev/null | grep "aux sync-all"
+    grep "aux sync-all" "$cron_file"
     return
   fi
 
-  mkdir -p "$HOME/.local/share/aux"
-  (crontab -l 2>/dev/null; echo "* * * * * $AUX_BIN sync-all >> $log 2>&1") | crontab -
+  mkdir -p "$HOME/.local/share/aux" "$HOME/.cron"
+  echo "* * * * * $AUX_BIN sync-all >> $log 2>&1" >> "$cron_file"
   echo "Cron job installed (runs every 60s)."
   echo "  Log: $log"
 }

@@ -17,10 +17,11 @@ service_binary() {
       ;;
     Linux)
       local service="$HOME/.config/systemd/user/aux-sync.service"
+      local cron_file="$HOME/.cron/$(whoami)"
       if [ -f "$service" ]; then
         awk -F= '/^ExecStart/{print $2}' "$service" | awk '{print $1}'
       else
-        crontab -l 2>/dev/null | grep "aux sync-all" | awk '{print $6}'
+        grep "aux sync-all" "$cron_file" 2>/dev/null | awk '{print $6}'
       fi
       ;;
   esac
@@ -28,9 +29,10 @@ service_binary() {
 
 linux_service_type() {
   local service="$HOME/.config/systemd/user/aux-sync.service"
+  local cron_file="$HOME/.cron/$(whoami)"
   if [ -f "$service" ]; then
     echo "systemd"
-  elif crontab -l 2>/dev/null | grep -q "aux sync-all"; then
+  elif [ -f "$cron_file" ] && grep -q "aux sync-all" "$cron_file"; then
     echo "cron"
   fi
 }
@@ -62,7 +64,13 @@ service_status() {
           fi
           ;;
         cron)
-          echo -e "Service [cron]: ${GREEN}healthy ✅${RESET}"
+          if pgrep -a crond 2>/dev/null | grep -q -- "-c $HOME/.cron"; then
+            echo -e "Service [cron]: ${GREEN}healthy ✅${RESET}"
+          elif pgrep crond >/dev/null 2>&1; then
+            echo -e "Service [cron]: ${RED}crond running but not watching $HOME/.cron ⚠️${RESET}"
+          else
+            echo -e "Service [cron]: ${RED}crond not running ⚠️  (is crond started?)${RESET}"
+          fi
           ;;
         *)
           echo -e "Service: ${RED}not installed ⚠️  (run \`aux init\` to set up)${RESET}"

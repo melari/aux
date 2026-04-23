@@ -17,9 +17,22 @@ service_binary() {
       ;;
     Linux)
       local service="$HOME/.config/systemd/user/aux-sync.service"
-      [ -f "$service" ] && awk -F= '/^ExecStart/{print $2}' "$service" | awk '{print $1}' || true
+      if [ -f "$service" ]; then
+        awk -F= '/^ExecStart/{print $2}' "$service" | awk '{print $1}'
+      else
+        crontab -l 2>/dev/null | grep "aux sync-all" | awk '{print $6}'
+      fi
       ;;
   esac
+}
+
+linux_service_type() {
+  local service="$HOME/.config/systemd/user/aux-sync.service"
+  if [ -f "$service" ]; then
+    echo "systemd"
+  elif crontab -l 2>/dev/null | grep -q "aux sync-all"; then
+    echo "cron"
+  fi
 }
 
 service_status() {
@@ -29,20 +42,32 @@ service_status() {
         local last_exit
         last_exit=$(launchctl list "com.aux.sync" | awk '/LastExitStatus/{gsub(/;/, "", $3); print $3}')
         if [ "${last_exit:-1}" = "0" ]; then
-          echo -e "Service: ${GREEN}healthy ✅${RESET}"
+          echo -e "Service [launchd]: ${GREEN}healthy ✅${RESET}"
         else
-          echo -e "Service: ${RED}unhealthy (last exit: $last_exit) ⚠️${RESET}"
+          echo -e "Service [launchd]: ${RED}unhealthy (last exit: $last_exit) ⚠️${RESET}"
         fi
       else
         echo -e "Service: ${RED}not installed ⚠️  (run \`aux init\` to set up)${RESET}"
       fi
       ;;
     Linux)
-      if systemctl --user is-active --quiet aux-sync.timer 2>/dev/null; then
-        echo -e "Service: ${GREEN}healthy ✅${RESET}"
-      else
-        echo -e "Service: ${RED}not installed or inactive ⚠️  (run \`aux init\` to set up)${RESET}"
-      fi
+      local stype
+      stype=$(linux_service_type)
+      case "$stype" in
+        systemd)
+          if systemctl --user is-active --quiet aux-sync.timer 2>/dev/null; then
+            echo -e "Service [systemd]: ${GREEN}healthy ✅${RESET}"
+          else
+            echo -e "Service [systemd]: ${RED}inactive ⚠️  (run \`aux init\` to set up)${RESET}"
+          fi
+          ;;
+        cron)
+          echo -e "Service [cron]: ${GREEN}healthy ✅${RESET}"
+          ;;
+        *)
+          echo -e "Service: ${RED}not installed ⚠️  (run \`aux init\` to set up)${RESET}"
+          ;;
+      esac
       ;;
     *)
       echo "Service: unknown (unsupported OS)"

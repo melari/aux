@@ -17,24 +17,9 @@ service_binary() {
       ;;
     Linux)
       local service="$HOME/.config/systemd/user/aux-sync.service"
-      local cron_file="$HOME/.cron/$(whoami)"
-      if [ -f "$service" ]; then
-        awk -F= '/^ExecStart/{print $2}' "$service" | awk '{print $1}'
-      else
-        grep "aux sync-all" "$cron_file" 2>/dev/null | awk '{print $6}'
-      fi
+      [ -f "$service" ] && awk -F= '/^ExecStart/{print $2}' "$service" | awk '{print $1}' || true
       ;;
   esac
-}
-
-linux_service_type() {
-  local service="$HOME/.config/systemd/user/aux-sync.service"
-  local cron_file="$HOME/.cron/$(whoami)"
-  if [ -f "$service" ]; then
-    echo "systemd"
-  elif [ -f "$cron_file" ] && grep -q "aux sync-all" "$cron_file"; then
-    echo "cron"
-  fi
 }
 
 service_status() {
@@ -53,31 +38,11 @@ service_status() {
       fi
       ;;
     Linux)
-      local stype
-      stype=$(linux_service_type)
-      case "$stype" in
-        systemd)
-          if systemctl --user is-active --quiet aux-sync.timer 2>/dev/null; then
-            echo -e "Service [systemd]: ${GREEN}healthy ✅${RESET}"
-          else
-            echo -e "Service [systemd]: ${RED}inactive ⚠️  (run \`aux init\` to set up)${RESET}"
-          fi
-          ;;
-        cron)
-          local crond_pid
-          crond_pid=$(pgrep crond 2>/dev/null)
-          if [ -n "$crond_pid" ] && tr '\0' ' ' < /proc/$crond_pid/cmdline 2>/dev/null | grep -q -- "-c $HOME/.cron"; then
-            echo -e "Service [cron]: ${GREEN}healthy ✅${RESET}"
-          elif [ -n "$crond_pid" ]; then
-            echo -e "Service [cron]: ${RED}crond running but not watching $HOME/.cron ⚠️${RESET}"
-          else
-            echo -e "Service [cron]: ${RED}crond not running ⚠️  (is crond started?)${RESET}"
-          fi
-          ;;
-        *)
-          echo -e "Service: ${RED}not installed ⚠️  (run \`aux init\` to set up)${RESET}"
-          ;;
-      esac
+      if systemctl --user is-active --quiet aux-sync.timer 2>/dev/null; then
+        echo -e "Service [systemd]: ${GREEN}healthy ✅${RESET}"
+      else
+        echo -e "Service: ${RED}not installed or inactive ⚠️  (run \`aux init\` to set up)${RESET}"
+      fi
       ;;
     *)
       echo "Service: unknown (unsupported OS)"

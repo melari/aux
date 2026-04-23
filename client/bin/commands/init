@@ -61,11 +61,7 @@ EOF
 
 # ── Linux (systemd) ────────────────────────────────────────────────────────────
 
-systemd_available() {
-  systemctl --user is-system-running >/dev/null 2>&1
-}
-
-init_linux_systemd() {
+init_linux() {
   local unit_dir="$HOME/.config/systemd/user"
   local service="$unit_dir/aux-sync.service"
   local timer="$unit_dir/aux-sync.timer"
@@ -119,29 +115,6 @@ EOF
   echo "  Log:     $HOME/.local/share/aux/sync.log"
 }
 
-init_linux_cron() {
-  local log="$HOME/.local/share/aux/sync.log"
-  local cron_file="$HOME/.cron/$(whoami)"
-
-  if [ -f "$cron_file" ] && grep -q "aux sync-all" "$cron_file"; then
-    echo "Cron job already installed. Checking health..."
-    grep "aux sync-all" "$cron_file"
-    return
-  fi
-
-  mkdir -p "$HOME/.local/share/aux" "$HOME/.cron"
-  echo "* * * * * $AUX_BIN sync-all >> $log 2>&1" >> "$cron_file"
-  echo "Cron job installed (runs every 60s)."
-  echo "  Log: $log"
-}
-
-init_linux() {
-  if systemd_available; then
-    init_linux_systemd
-  else
-    init_linux_cron
-  fi
-}
 
 # ── Dispatch ───────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,9 @@
 #!/bin/bash
 cd "$(dirname "$0")/.."
 mkdir -p notes
-exec ruby app.rb
+
+export PASSKEY_ORIGIN="${PASSKEY_ORIGIN:-http://localhost:8080}"
+export PASSKEY_SETUP_PASSWORD="${PASSKEY_SETUP_PASSWORD:-devpassword}"
+export SESSION_SECRET="${SESSION_SECRET:-devsecret}"
+
+exec bundle exec ruby app.rb

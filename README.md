@@ -73,6 +73,25 @@ Next, enable the editor feature by setting the `RUN_EDITOR=true` environment var
 
 `docker run -e SYNCING_SERVER_URL=git@github.com:user/notes.git -e RUN_EDITOR=true aux`
 
+#### Authentication
+
+The editor is protected by passkey authentication (Face ID / Touch ID). The server must be accessible over **HTTPS** for passkeys to work on real devices (localhost is exempt for development).
+
+| Variable | Required | Description |
+|---|---|---|
+| `PASSKEY_ORIGIN` | Yes | The full origin the server is served from, e.g. `https://notes.example.com`. Must match exactly — no trailing slash. |
+| `PASSKEY_SETUP_PASSWORD` | Yes | A password used to gate the one-time passkey registration. Choose something strong; this is your only door before a passkey exists. |
+| `SESSION_SECRET` | Recommended | A random hex string used to sign session cookies. If not set, a secret is generated at startup and sessions will not survive a container restart. Generate one with: `openssl rand -hex 32` |
+
+**First-time setup:**
+
+1. Visit `https://your-server/setup`
+2. Enter your `PASSKEY_SETUP_PASSWORD`
+3. Follow the prompt to register your device (Face ID / Touch ID)
+4. You will be redirected to the editor and signed in
+
+Subsequent visits require Face ID/Touch ID and do not need the password. To re-register (e.g. after a new device), visit `/setup` again with the password.
+
 ### Feature 4: Public Note Hosting
 
 This feature handles rendering and serving notes which you have explicitly marked as public. This can be used to host a "public digital garden" or wiki-style knowledge base.

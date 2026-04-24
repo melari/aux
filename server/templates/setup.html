@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>aux — setup passkey</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #0c0c0c;
+      --bg-alt: #111;
+      --border: #222;
+      --text:   #808080;
+      --bright: #c8c8c8;
+      --dim:    #404040;
+      --green:  #4a9;
+      --red:    #a44;
+    }
+    html, body {
+      height: 100%;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 5px 12px;
+      background: var(--bg-alt);
+      border-bottom: 1px solid var(--border);
+      color: var(--dim);
+      height: 32px;
+      display: flex;
+      align-items: center;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 320px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card h1 { font-size: 13px; color: var(--bright); font-weight: normal; }
+    .card p  { font-size: 12px; line-height: 1.6; }
+    input[type="password"] {
+      font-family: inherit;
+      font-size: 13px;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      color: var(--bright);
+      padding: 6px 10px;
+      width: 100%;
+      outline: none;
+    }
+    input[type="password"]:focus { border-color: var(--dim); }
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 16px;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:hover  { background: #181818; color: var(--bright); border-color: var(--dim); }
+    button.primary { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+    button.primary:hover { background: color-mix(in srgb, var(--green) 8%, transparent); border-color: var(--green); }
+    button:disabled { opacity: 0.4; cursor: default; }
+    .hidden { display: none !important; }
+    #error { color: var(--red); font-size: 12px; display: none; }
+    #success { color: var(--green); font-size: 12px; display: none; }
+    a { color: var(--dim); text-decoration: none; font-size: 12px; }
+    a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header>aux/setup</header>
+  <main>
+    <div class="card">
+      <h1>passkey setup</h1>
+      <p>Enter the setup password to register a new passkey for this device.</p>
+
+      <div id="error"></div>
+      <div id="success"></div>
+
+      <div id="step-password">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input type="password" id="password" placeholder="setup password" onkeydown="if(event.key==='Enter')unlockSetup()">
+          <button onclick="unlockSetup()">continue →</button>
+        </div>
+      </div>
+
+      <div id="step-register" class="hidden">
+        <button class="primary" id="register-btn" onclick="registerPasskey()">[ register face id ]</button>
+      </div>
+
+      <a href="/auth">← back to sign in</a>
+    </div>
+  </main>
+  <script>
+    function b64url2buf(b) {
+      const s = atob(b.replace(/-/g, '+').replace(/_/g, '/'));
+      return Uint8Array.from(s, c => c.charCodeAt(0)).buffer;
+    }
+    function buf2b64url(buf) {
+      const bytes = new Uint8Array(buf);
+      let s = '';
+      bytes.forEach(b => s += String.fromCharCode(b));
+      return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+    function setError(msg) {
+      const el = document.getElementById('error');
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
+    }
+    function setSuccess(msg) {
+      const el = document.getElementById('success');
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
+    }
+
+    let cachedPassword = '';
+
+    async function unlockSetup() {
+      const pw = document.getElementById('password').value;
+      if (!pw) return;
+      setError('');
+
+      // Pre-flight: request challenge to validate password
+      const r = await fetch('/setup/challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      const data = await r.json();
+      if (!r.ok) { setError(data.error); return; }
+
+      // Password valid — stash challenge for the registration step
+      cachedPassword = pw;
+      window._pendingChallenge = data;
+
+      document.getElementById('step-password').classList.add('hidden');
+      document.getElementById('step-register').classList.remove('hidden');
+      setSuccess('password accepted — register your passkey below');
+    }
+
+    async function registerPasskey() {
+      const btn = document.getElementById('register-btn');
+      btn.disabled = true;
+      btn.textContent = '[ registering... ]';
+      setError('');
+      try {
+        const opts = window._pendingChallenge;
+        opts.challenge = b64url2buf(opts.challenge);
+        opts.user.id  = b64url2buf(opts.user.id);
+        if (opts.excludeCredentials) {
+          opts.excludeCredentials = opts.excludeCredentials.map(c => ({ ...c, id: b64url2buf(c.id) }));
+        }
+
+        const credential = await navigator.credentials.create({ publicKey: opts });
+
+        const r = await fetch('/setup/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id:    credential.id,
+            rawId: buf2b64url(credential.rawId),
+            type:  credential.type,
+            response: {
+              clientDataJSON:    buf2b64url(credential.response.clientDataJSON),
+              attestationObject: buf2b64url(credential.response.attestationObject)
+            }
+          })
+        });
+        const d = await r.json();
+        if (r.ok) { window.location = '/'; return; }
+        setError(d.error);
+      } catch (e) {
+        setError(e.name === 'NotAllowedError' ? 'registration cancelled or timed out' : e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '[ register passkey ]';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -21,9 +21,11 @@ COPY app.rb .
 COPY Gemfile .
 COPY endpoints/ endpoints/
 COPY templates/ templates/
+COPY assets/ assets/
 RUN bundle install --no-cache
 
 RUN mkdir bare_repo.git
 RUN mkdir notes
+RUN mkdir config
 
 CMD ["./start_aux_server.sh"]

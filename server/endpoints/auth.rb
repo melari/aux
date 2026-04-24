@@ -4,7 +4,7 @@ require 'webauthn'
 require_relative 'session'
 
 class Auth
-  CREDENTIAL_FILE = File.expand_path('../passkey.json', __dir__)
+  CREDENTIAL_FILE = File.expand_path('../config/passkey.json', __dir__)
   CHALLENGES      = {}
 
   def self.serve(req, res)

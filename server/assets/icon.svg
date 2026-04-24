@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0c0c0c"/>
+  <text x="256" y="256"
+    font-family="'Courier New', Courier, monospace"
+    font-size="88"
+    font-weight="normal"
+    fill="#585858"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    letter-spacing="14">AUX</text>
+</svg>

@@ -25,6 +25,24 @@ server.mount '/api/notes', notes_servlet
 server.mount_proc '/auth'  do |req, res| Auth.serve(req, res)  end
 server.mount_proc '/setup' do |req, res| Setup.serve(req, res) end
 
+server.mount_proc '/icon.svg' do |_req, res|
+  res.content_type = 'image/svg+xml'
+  res.body = File.read(File.expand_path('assets/icon.svg', __dir__))
+end
+
+server.mount_proc '/manifest.json' do |_req, res|
+  res.content_type = 'application/manifest+json'
+  res.body = {
+    name: 'aux notes',
+    short_name: 'aux',
+    display: 'standalone',
+    background_color: '#0c0c0c',
+    theme_color: '#0c0c0c',
+    start_url: '/',
+    icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' }]
+  }.to_json
+end
+
 server.mount_proc '/ping' do |_req, res|
   res.content_type = 'text/plain'
   res.body = 'pong'

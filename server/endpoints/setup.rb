@@ -5,7 +5,7 @@ require 'webauthn'
 require_relative 'session'
 
 class Setup
-  CREDENTIAL_FILE  = File.expand_path('../passkey.json', __dir__)
+  CREDENTIAL_FILE  = File.expand_path('../config/passkey.json', __dir__)
   SETUP_PASSWORD   = ENV['PASSKEY_SETUP_PASSWORD']
   CHALLENGES       = {}
 

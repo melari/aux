@@ -73,6 +73,10 @@ Next, enable the editor feature by setting the `RUN_EDITOR=true` environment var
 
 The editor is protected by passkey authentication (Face ID / Touch ID). The server must be accessible over **HTTPS** for passkeys to work on real devices (localhost is exempt for development).
 
+You'll want to mount the config directory so that your passkey persists across container restarts:
+
+`docker run -v /path/on/host/config:/app/config aux`
+
 | Variable | Required | Description |
 |---|---|---|
 | `PASSKEY_ORIGIN` | Yes | The full origin the server is served from, e.g. `https://notes.example.com`. Must match exactly — no trailing slash. |

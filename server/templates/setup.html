@@ -4,15 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>aux — setup passkey</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="aux">
+  <meta name="theme-color" content="#0c0c0c">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="manifest" href="/manifest.json">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg:     #0c0c0c;
       --bg-alt: #111;
       --border: #222;
-      --text:   #808080;
-      --bright: #c8c8c8;
-      --dim:    #404040;
+      --text:   #999999;
+      --bright: #e8e8e8;
+      --dim:    #585858;
       --green:  #4a9;
       --red:    #a44;
     }
@@ -102,7 +108,7 @@
       </div>
 
       <div id="step-register" class="hidden">
-        <button class="primary" id="register-btn" onclick="registerPasskey()">[ register face id ]</button>
+        <button class="primary" id="register-btn" onclick="registerPasskey()">[ register passkey ]</button>
       </div>
 
       <a href="/auth">← back to sign in</a>

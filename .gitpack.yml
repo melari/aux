@@ -1,2 +1,3 @@
 name: aux
 entrypoint: client/bin/aux
+setup: client/bin/setup.sh

@@ -1,1 +1,354 @@
-aux editor
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>aux notes</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0c0c0c;
+      --bg-alt:  #111;
+      --bg-hi:   #181818;
+      --border:  #222;
+      --text:    #808080;
+      --bright:  #c8c8c8;
+      --dim:     #404040;
+      --green:   #4a9;
+      --red:     #a44;
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 10px;
+      background: var(--bg-alt);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 8px;
+      height: 32px;
+    }
+
+    #breadcrumb { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #breadcrumb em { font-style: normal; color: var(--bright); }
+
+    .hbtns { display: flex; gap: 6px; flex-shrink: 0; }
+
+    button {
+      font-family: inherit;
+      font-size: 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 1px 7px;
+      cursor: pointer;
+      line-height: 1.6;
+    }
+    button:hover { background: var(--bg-hi); color: var(--bright); border-color: var(--dim); }
+    button.primary { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+    button.primary:hover { background: color-mix(in srgb, var(--green) 8%, transparent); border-color: var(--green); }
+    button.ghost { border-color: transparent; }
+    button.ghost:hover { border-color: var(--dim); }
+
+    .hidden { display: none !important; }
+
+    /* ── Layout ── */
+    main { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 210px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .entry {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .entry:hover { background: var(--bg-hi); }
+    .entry.active { background: var(--bg-hi); color: var(--bright); }
+
+    .entry .arrow { color: var(--dim); font-size: 9px; width: 10px; flex-shrink: 0; }
+    .entry .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+    .entry .label.dir { color: var(--bright); }
+    .entry .del {
+      visibility: hidden;
+      color: var(--red);
+      border-color: transparent;
+      padding: 0 3px;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .entry:hover .del { visibility: visible; }
+
+    .subtree { border-left: 1px solid var(--border); }
+
+    /* ── Editor ── */
+    #editor {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #editor-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 10px;
+      background: var(--bg-alt);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      height: 28px;
+      font-size: 12px;
+    }
+
+    #editor-path { color: var(--dim); }
+    #modified { color: var(--dim); font-size: 11px; }
+
+    textarea {
+      flex: 1;
+      background: var(--bg);
+      color: var(--bright);
+      border: none;
+      padding: 12px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.65;
+      resize: none;
+      outline: none;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 600px) {
+      #sidebar { width: 100%; border-right: none; }
+      #editor { position: fixed; inset: 32px 0 0; background: var(--bg); z-index: 10; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div id="breadcrumb">aux/<em id="bc-file">notes</em></div>
+  <div class="hbtns">
+    <button id="back-btn" class="hidden ghost" onclick="closeEditor()">← back</button>
+    <button id="new-btn" onclick="newNote()">+ new</button>
+    <button id="save-btn" class="primary hidden" onclick="saveNote()">save</button>
+  </div>
+</header>
+
+<main>
+  <aside id="sidebar"><div id="file-tree"></div></aside>
+  <section id="editor" class="hidden">
+    <div id="editor-bar">
+      <span id="editor-path"></span>
+      <span id="modified" class="hidden">modified</span>
+    </div>
+    <textarea id="textarea" spellcheck="false"></textarea>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const fileTree   = $('file-tree');
+  const sidebarEl  = $('sidebar');
+  const editorEl   = $('editor');
+  const textarea   = $('textarea');
+  const saveBtn    = $('save-btn');
+  const backBtn    = $('back-btn');
+  const newBtn     = $('new-btn');
+  const editorPath = $('editor-path');
+  const modified   = $('modified');
+  const bcFile     = $('bc-file');
+
+  let currentPath = null;
+  let activeRow   = null;
+
+  // ── API ────────────────────────────────────────────────────────────────────────
+
+  async function api(method, path = '', body) {
+    const url = '/api/notes' + (path ? '/' + path : '');
+    const r = await fetch(url, {
+      method,
+      body,
+      headers: body !== undefined ? { 'Content-Type': 'text/plain' } : {}
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ error: r.statusText }));
+      throw new Error(err.error || r.statusText);
+    }
+    return r;
+  }
+
+  // ── Tree ───────────────────────────────────────────────────────────────────────
+
+  async function loadDir(path = '', container = fileTree, indent = 0) {
+    const entries = await api('GET', path).then(r => r.json());
+    container.innerHTML = '';
+
+    if (!entries.length) {
+      const msg = document.createElement('div');
+      msg.style.cssText = 'padding:4px 8px;color:var(--dim);font-size:11px';
+      msg.textContent = '(empty)';
+      container.appendChild(msg);
+      return;
+    }
+
+    for (const e of entries) {
+      const row = document.createElement('div');
+      row.className = 'entry';
+      row.style.paddingLeft = `${8 + indent * 14}px`;
+
+      const arrow = document.createElement('span');
+      arrow.className = 'arrow';
+
+      const label = document.createElement('span');
+      label.className = 'label' + (e.dir ? ' dir' : '');
+      label.textContent = e.name + (e.dir ? '/' : '');
+
+      row.append(arrow, label);
+
+      if (e.dir) {
+        arrow.textContent = '▶';
+        const sub = document.createElement('div');
+        sub.className = 'subtree hidden';
+        container.append(row, sub);
+
+        let open = false;
+        row.addEventListener('click', async () => {
+          open = !open;
+          arrow.textContent = open ? '▼' : '▶';
+          sub.classList.toggle('hidden', !open);
+          if (open && !sub.hasChildNodes()) await loadDir(e.path, sub, indent + 1);
+        });
+      } else {
+        const del = document.createElement('button');
+        del.className = 'del ghost';
+        del.textContent = '×';
+        del.title = 'delete';
+        del.addEventListener('click', ev => { ev.stopPropagation(); deleteFile(e); });
+        row.append(del);
+        container.appendChild(row);
+
+        row.addEventListener('click', () => openFile(e, row));
+      }
+    }
+  }
+
+  // ── File actions ───────────────────────────────────────────────────────────────
+
+  async function openFile(entry, row) {
+    if (activeRow) activeRow.classList.remove('active');
+    activeRow = row;
+    row.classList.add('active');
+
+    currentPath = entry.path;
+    textarea.value = await api('GET', entry.path).then(r => r.text());
+    editorPath.textContent = entry.path;
+    bcFile.textContent = entry.name;
+    setModified(false);
+
+    saveBtn.classList.remove('hidden');
+    showEditor();
+    textarea.focus();
+  }
+
+  async function saveNote() {
+    if (!currentPath) return;
+    try {
+      await api('PUT', currentPath, textarea.value);
+      setModified(false);
+    } catch (e) { alert('save failed: ' + e.message); }
+  }
+
+  async function newNote() {
+    const input = prompt('filename:');
+    if (!input || !input.trim()) return;
+    const name = input.trim().includes('.') ? input.trim() : input.trim() + '.md';
+    try {
+      await api('POST', name);
+    } catch (e) { alert('error: ' + e.message); return; }
+    await loadDir();
+    const row = [...fileTree.querySelectorAll('.entry:not(.dir)')].find(
+      r => r.querySelector('.label')?.textContent === name
+    );
+    if (row) row.click();
+  }
+
+  async function deleteFile(entry) {
+    if (!confirm(`delete "${entry.name}"?`)) return;
+    try {
+      await api('DELETE', entry.path);
+    } catch (e) { alert('error: ' + e.message); return; }
+    if (currentPath === entry.path) closeEditor();
+    await loadDir();
+  }
+
+  // ── Layout ─────────────────────────────────────────────────────────────────────
+
+  function showEditor() {
+    editorEl.classList.remove('hidden');
+    if (window.innerWidth <= 600) {
+      sidebarEl.classList.add('hidden');
+      backBtn.classList.remove('hidden');
+      newBtn.classList.add('hidden');
+    }
+  }
+
+  function closeEditor() {
+    currentPath = null;
+    activeRow = null;
+    editorEl.classList.add('hidden');
+    sidebarEl.classList.remove('hidden');
+    saveBtn.classList.add('hidden');
+    backBtn.classList.add('hidden');
+    newBtn.classList.remove('hidden');
+    bcFile.textContent = 'notes';
+  }
+
+  function setModified(val) {
+    modified.classList.toggle('hidden', !val);
+  }
+
+  textarea.addEventListener('input', () => setModified(true));
+
+  textarea.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveNote(); }
+  });
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 600) {
+      sidebarEl.classList.remove('hidden');
+      backBtn.classList.add('hidden');
+      if (currentPath) { newBtn.classList.remove('hidden'); editorEl.classList.remove('hidden'); }
+    }
+  });
+
+  // ── Init ───────────────────────────────────────────────────────────────────────
+  loadDir();
+</script>
+</body>
+</html>

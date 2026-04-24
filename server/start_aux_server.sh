@@ -15,6 +15,11 @@ if [ ! -d "$BARE_REPO" ] || ! git -C "$BARE_REPO" rev-parse --git-dir >/dev/null
   git init --bare "$BARE_REPO"
 fi
 
+GIT_URL="${SYNCING_SERVER_URL:-$(realpath "$BARE_REPO")}"
+if ! aux st 2>/dev/null | grep -q "$(realpath notes)"; then
+  aux link "$(realpath notes)" "$GIT_URL" || true
+fi
+
 while true; do
   sleep 60
   { aux sync-all 2>&1 || true; } | sed 's/^/[aux sync-all] /'

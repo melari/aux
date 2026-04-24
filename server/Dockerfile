@@ -1,6 +1,6 @@
 FROM alpine:latest
 
-RUN apk add --no-cache git bash ruby ruby-dev build-base curl git openssh-client
+RUN apk add --no-cache git bash ruby ruby-dev build-base curl git openssh-client jq
 RUN gem install bundler --no-document
 
 RUN adduser -D appuser

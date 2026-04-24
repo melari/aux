@@ -14,6 +14,8 @@ if [ ! -d "$BARE_REPO" ] || ! git -C "$BARE_REPO" rev-parse --git-dir >/dev/null
   echo "Initializing bare git repository in $BARE_REPO..."
   git init --bare "$BARE_REPO"
 fi
+git config --global user.email "aux server"
+git config --global user.name "aux server"
 
 GIT_URL="${SYNCING_SERVER_URL:-$(realpath "$BARE_REPO")}"
 if ! aux st 2>/dev/null | grep -q "$(realpath notes)"; then

@@ -1,6 +1,6 @@
 FROM alpine:latest
 
-RUN apk add --no-cache git bash ruby ruby-dev build-base curl git openssh-client jq
+RUN apk add --no-cache git bash ruby ruby-dev build-base curl git openssh-client jq openssl-dev
 RUN gem install bundler --no-document
 
 RUN adduser -D appuser
@@ -19,6 +19,8 @@ WORKDIR /app
 COPY start_aux_server.sh .
 COPY app.rb .
 COPY Gemfile .
+COPY endpoints/ endpoints/
+COPY templates/ templates/
 RUN bundle install --no-cache
 
 RUN mkdir bare_repo.git

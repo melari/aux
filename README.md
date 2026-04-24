@@ -20,14 +20,6 @@ curl -fsSL gitpack.htlc.io | sh -s -- install git@github.com:melari/aux.git
 
 ### Usage
 
-First, initialize the aux service (provides automatic syncing in the background):
-
-```
-aux init
-```
-
-
-You can confirm that the service is healthy at any time by running: `aux status`
 
 Next, you can set up your notes repository. You need to provide:
 1. The directory your notes should be stored locally.
@@ -36,6 +28,10 @@ Next, you can set up your notes repository. You need to provide:
 ```
 aux link ~/path/to/your/notes git@github.com:user/my-notes.git
 ```
+
+Aux runs a systemd service in the background to provide automatic file syncing. You can confirm that the service is healthy at any time by running: `aux status`
+
+Check out other available commands with `aux help`
 ```
 ```
 ```

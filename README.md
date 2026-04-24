@@ -8,7 +8,7 @@ Note that the server component is fully optional and it is possible to use the C
 
 ## Client CLI
 
-The client CLI is a small utility which helps manage your library of markdown notes. It provides automatic syncing betwee
+The client CLI is a small utility which helps manage your library of markdown notes. It provides:
 - automatic syncing between devices via a git repository
 - search functionality via [qmd](https://github.com/tobi/qmd)
 

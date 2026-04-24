@@ -13,7 +13,7 @@ if [ -z "$PATH_DIR" ] || [ -z "$REMOTE_URL" ]; then
   exit 1
 fi
 
-"$(dirname "$0")/../aux" init
+"$(dirname "$0")/../aux" init || echo "Warning: could not initialize aux service. Run 'aux init' manually to set up background sync."
 
 # Ensure data directory and file exist
 mkdir -p "$DATA_DIR"

@@ -21,7 +21,7 @@ curl -fsSL gitpack.htlc.io | sh -s -- install git@github.com:melari/aux.git
 ### Usage
 
 
-Next, you can set up your notes repository. You need to provide:
+To set up your notes repository, you need to provide:
 1. The directory your notes should be stored locally.
 2. The syncing server (github repo) that will be used to sync your notes to your other devices. This can be your own aux server (see below), a free GitHub repo, or any other git repo provider.
 
@@ -32,10 +32,6 @@ aux link ~/path/to/your/notes git@github.com:user/my-notes.git
 Aux runs a systemd service in the background to provide automatic file syncing. You can confirm that the service is healthy at any time by running: `aux status`
 
 Check out other available commands with `aux help`
-```
-```
-```
-```
 
 ## Server
 

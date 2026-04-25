@@ -22,6 +22,12 @@ notes_servlet = Class.new(WEBrick::HTTPServlet::AbstractServlet) do
 end
 server.mount '/api/notes', notes_servlet
 
+server.mount_proc '/logout' do |_req, res|
+  res['Set-Cookie'] = "#{Session::COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"
+  res.status = 302
+  res['Location'] = '/auth'
+end
+
 server.mount_proc '/auth'  do |req, res| Auth.serve(req, res)  end
 server.mount_proc '/setup' do |req, res| Setup.serve(req, res) end
 

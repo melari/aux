@@ -162,6 +162,7 @@
   <div class="hbtns">
     <button id="back-btn" class="hidden ghost" onclick="closeEditor()">← back</button>
     <button id="new-btn" onclick="newNote()">+ new</button>
+    <button id="logout-btn" onclick="location.href='/logout'">logout</button>
     <button id="save-btn" class="primary hidden" onclick="saveNote()">save</button>
   </div>
 </header>
@@ -186,6 +187,7 @@
   const saveBtn    = $('save-btn');
   const backBtn    = $('back-btn');
   const newBtn     = $('new-btn');
+  const logoutBtn  = $('logout-btn');
   const editorPath = $('editor-path');
   const modified   = $('modified');
   const bcFile     = $('bc-file');
@@ -320,6 +322,7 @@
       sidebarEl.classList.add('hidden');
       backBtn.classList.remove('hidden');
       newBtn.classList.add('hidden');
+      logoutBtn.classList.add('hidden');
     }
   }
 
@@ -331,6 +334,7 @@
     saveBtn.classList.add('hidden');
     backBtn.classList.add('hidden');
     newBtn.classList.remove('hidden');
+    logoutBtn.classList.remove('hidden');
     bcFile.textContent = 'notes';
   }
 

@@ -99,16 +99,6 @@
     .entry .arrow { color: var(--dim); font-size: 9px; width: 10px; flex-shrink: 0; }
     .entry .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
     .entry .label.dir { color: var(--bright); }
-    .entry .del {
-      visibility: hidden;
-      color: var(--red);
-      border-color: transparent;
-      padding: 0 3px;
-      font-size: 11px;
-      line-height: 1.4;
-    }
-    .entry:hover .del { visibility: visible; }
-
     .subtree { border-left: 1px solid var(--border); }
 
     /* ── Editor ── */
@@ -161,9 +151,10 @@
   <div id="breadcrumb">aux/<em id="bc-file">notes</em></div>
   <div class="hbtns">
     <button id="back-btn" class="hidden ghost" onclick="closeEditor()">← back</button>
+    <button id="save-btn" class="primary hidden" onclick="saveNote()">save</button>
+    <button id="delete-btn" class="hidden" style="color:var(--red);border-color:color-mix(in srgb,var(--red) 40%,transparent)" onclick="deleteCurrentFile()">delete</button>
     <button id="new-btn" onclick="newNote()">+ new</button>
     <button id="logout-btn" onclick="location.href='/logout'">logout</button>
-    <button id="save-btn" class="primary hidden" onclick="saveNote()">save</button>
   </div>
 </header>
 
@@ -188,6 +179,7 @@
   const backBtn    = $('back-btn');
   const newBtn     = $('new-btn');
   const logoutBtn  = $('logout-btn');
+  const deleteBtn  = $('delete-btn');
   const editorPath = $('editor-path');
   const modified   = $('modified');
   const bcFile     = $('bc-file');
@@ -253,12 +245,6 @@
           if (open && !sub.hasChildNodes()) await loadDir(e.path, sub, indent + 1);
         });
       } else {
-        const del = document.createElement('button');
-        del.className = 'del ghost';
-        del.textContent = '×';
-        del.title = 'delete';
-        del.addEventListener('click', ev => { ev.stopPropagation(); deleteFile(e); });
-        row.append(del);
         container.appendChild(row);
 
         row.addEventListener('click', () => openFile(e, row));
@@ -275,6 +261,7 @@
 
     currentPath = entry.path;
     saveBtn.classList.remove('hidden');
+    deleteBtn.classList.remove('hidden');
     showEditor();
 
     textarea.value = await api('GET', entry.path).then(r => r.text());
@@ -314,6 +301,17 @@
     await loadDir();
   }
 
+  async function deleteCurrentFile() {
+    if (!currentPath) return;
+    const name = editorPath.textContent;
+    if (!confirm(`delete "${name}"?`)) return;
+    try {
+      await api('DELETE', currentPath);
+    } catch (e) { alert('error: ' + e.message); return; }
+    closeEditor();
+    await loadDir();
+  }
+
   // ── Layout ─────────────────────────────────────────────────────────────────────
 
   function showEditor() {
@@ -328,10 +326,12 @@
 
   function closeEditor() {
     currentPath = null;
+    if (activeRow) activeRow.classList.remove('active');
     activeRow = null;
     editorEl.classList.add('hidden');
     sidebarEl.classList.remove('hidden');
     saveBtn.classList.add('hidden');
+    deleteBtn.classList.add('hidden');
     backBtn.classList.add('hidden');
     newBtn.classList.remove('hidden');
     logoutBtn.classList.remove('hidden');

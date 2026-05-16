@@ -351,11 +351,14 @@
   function setModified(val) {
     isModified = val;
     saveBtn.classList.toggle('hidden', !val);
-    modified.classList.toggle('hidden', !val);
     if (val) {
-      modified.textContent = lastSaveTime
-        ? 'modified · saved ' + timeAgo(lastSaveTime)
-        : 'modified';
+      modified.textContent = 'modified';
+      modified.classList.remove('hidden');
+    } else if (lastSaveTime) {
+      modified.textContent = 'saved ' + timeAgo(lastSaveTime);
+      modified.classList.remove('hidden');
+    } else {
+      modified.classList.add('hidden');
     }
   }
 

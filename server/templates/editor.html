@@ -184,8 +184,10 @@
   const modified   = $('modified');
   const bcFile     = $('bc-file');
 
-  let currentPath = null;
-  let activeRow   = null;
+  let currentPath  = null;
+  let activeRow    = null;
+  let isModified   = false;
+  let lastSaveTime = null;
 
   // ── API ────────────────────────────────────────────────────────────────────────
 
@@ -259,8 +261,8 @@
     activeRow = row;
     row.classList.add('active');
 
-    currentPath = entry.path;
-    saveBtn.classList.remove('hidden');
+    currentPath  = entry.path;
+    lastSaveTime = null;
     deleteBtn.classList.remove('hidden');
     showEditor();
 
@@ -274,6 +276,7 @@
     if (!currentPath) return;
     try {
       await api('PUT', currentPath, textarea.value);
+      lastSaveTime = Date.now();
       setModified(false);
     } catch (e) { alert('save failed: ' + e.message); }
   }
@@ -338,8 +341,22 @@
     bcFile.textContent = 'notes';
   }
 
+  function timeAgo(ts) {
+    const mins = Math.floor((Date.now() - ts) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins === 1) return '1 minute ago';
+    return `${mins} minutes ago`;
+  }
+
   function setModified(val) {
+    isModified = val;
+    saveBtn.classList.toggle('hidden', !val);
     modified.classList.toggle('hidden', !val);
+    if (val) {
+      modified.textContent = lastSaveTime
+        ? 'modified · saved ' + timeAgo(lastSaveTime)
+        : 'modified';
+    }
   }
 
   textarea.addEventListener('input', () => setModified(true));
@@ -357,6 +374,7 @@
   });
 
   // ── Init ───────────────────────────────────────────────────────────────────────
+  setInterval(() => { if (isModified && currentPath) saveNote(); }, 3000);
   loadDir();
 </script>
 </body>

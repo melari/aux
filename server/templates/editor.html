@@ -163,7 +163,6 @@
   <section id="editor" class="hidden">
     <div id="editor-bar">
       <span id="editor-path"></span>
-      <span id="modified" class="hidden">modified</span>
     </div>
     <textarea id="textarea" spellcheck="false"></textarea>
   </section>
@@ -181,7 +180,6 @@
   const logoutBtn  = $('logout-btn');
   const deleteBtn  = $('delete-btn');
   const editorPath = $('editor-path');
-  const modified   = $('modified');
   const bcFile     = $('bc-file');
 
   let currentPath  = null;
@@ -267,7 +265,6 @@
     showEditor();
 
     textarea.value = await api('GET', entry.path).then(r => r.text());
-    editorPath.textContent = entry.path;
     bcFile.textContent = entry.name;
     setModified(false);
   }
@@ -333,6 +330,7 @@
     activeRow = null;
     editorEl.classList.add('hidden');
     sidebarEl.classList.remove('hidden');
+    editorPath.textContent = '';
     saveBtn.classList.add('hidden');
     deleteBtn.classList.add('hidden');
     backBtn.classList.add('hidden');
@@ -352,13 +350,11 @@
     isModified = val;
     saveBtn.classList.toggle('hidden', !val);
     if (val) {
-      modified.textContent = 'modified';
-      modified.classList.remove('hidden');
+      editorPath.textContent = currentPath + '*';
     } else if (lastSaveTime) {
-      modified.textContent = 'saved ' + timeAgo(lastSaveTime);
-      modified.classList.remove('hidden');
+      editorPath.textContent = currentPath + ' (saved ' + timeAgo(lastSaveTime) + ')';
     } else {
-      modified.classList.add('hidden');
+      editorPath.textContent = currentPath || '';
     }
   }
 

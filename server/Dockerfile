@@ -1,9 +1,16 @@
-FROM alpine:latest
+FROM ruby:3.4.13
 
-RUN apk add --no-cache git bash ruby ruby-dev build-base curl git openssh-client jq openssl-dev
-RUN gem install bundler --no-document
+RUN apt-get update && apt-get install -y \
+  git \
+  bash \
+  curl \
+  openssh-client \
+  jq \
+  libssl-dev \
+  --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
 
-RUN adduser -D appuser
+RUN adduser --disabled-password --gecos "" appuser
 USER appuser
 
 RUN mkdir -p /home/appuser/.ssh && chmod 700 /home/appuser/.ssh
@@ -16,12 +23,12 @@ RUN curl -fsSL gitpack.htlc.io | sh -s -- install https://github.com/melari/aux.
 
 WORKDIR /app
 
-COPY start_aux_server.sh .
-COPY app.rb .
-COPY Gemfile .
-COPY endpoints/ endpoints/
-COPY templates/ templates/
-COPY assets/ assets/
+COPY --chown=appuser:appuser start_aux_server.sh .
+COPY --chown=appuser:appuser app.rb .
+COPY --chown=appuser:appuser Gemfile .
+COPY --chown=appuser:appuser endpoints/ endpoints/
+COPY --chown=appuser:appuser templates/ templates/
+COPY --chown=appuser:appuser assets/ assets/
 RUN bundle install --no-cache
 
 RUN mkdir bare_repo.git
